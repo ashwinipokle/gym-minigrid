@@ -164,6 +164,48 @@ class FullyObsWrapper(gym.core.ObservationWrapper):
 
         return full_grid
 
+class GlobalObsWrapper(gym.core.ObservationWrapper):
+    """
+    Fully observable gridworld using a compact grid encoding
+    """
+
+    def __init__(self, env):
+        self.__dict__.update(vars(env))  # Pass values to super wrapper
+        super().__init__(env)
+
+        self.observation_space = spaces.Box(
+            low=0,
+            high=255,
+            shape=(self.env.width, self.env.height, 3),  # number of cells
+            dtype='uint8'
+        )
+
+    def observation(self, obs):
+        env = self.unwrapped
+        full_grid = env.grid.encode()
+        agent_pos = [env.agent_pos[0], env.agent_pos[1]]
+
+        goal_coords = np.where(full_grid[:,:,0] == OBJECT_TO_IDX['goal'])
+        goal_pos  = [goal_coords[0][0], goal_coords[1][0]]
+
+        key_coords = np.where(full_grid[:,:,0] == OBJECT_TO_IDX['key'])
+        if len(key_coords[0]) == 0:
+            key_pos = [-1, -1]
+        else:
+            key_pos = [key_coords[0][0], key_coords[1][0]]
+
+        door_coords = np.where(full_grid[:,:,0] == OBJECT_TO_IDX['door'])
+        door_pos = [door_coords[0][0], door_coords[1][0]]
+
+        door_state = [0]
+        if True in np.where(full_grid[:,:,2] == 2):
+            door_state = [2]
+        elif True in np.where(full_grid[:,:,2] == 1):
+            door_state = [1]
+
+        obs = np.concatenate((agent_pos, goal_pos, key_pos, door_pos, door_state))
+        return obs
+
 class FlatObsWrapper(gym.core.ObservationWrapper):
     """
     Encode mission strings using a one-hot scheme,
